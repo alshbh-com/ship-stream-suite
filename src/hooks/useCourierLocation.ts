@@ -17,7 +17,7 @@ export function useCourierLocation(userId: string | undefined) {
     const sendLocation = async () => {
       const pos = latestPos.current;
       if (!pos) return;
-      await supabase.from('courier_locations' as any).upsert({
+      await supabase.from('courier_locations').upsert({
         courier_id: userId,
         latitude: pos.lat,
         longitude: pos.lng,
