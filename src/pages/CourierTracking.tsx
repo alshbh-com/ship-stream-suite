@@ -50,6 +50,34 @@ export default function CourierTracking() {
   const courierMarkersRef = useRef<Map<string, any>>(new Map());
   const govMarkersRef = useRef<any[]>([]);
 
+  useEffect(() => { loadData(); }, []);
+
+  const loadLocations = async () => {
+    const { data } = await supabase.from('courier_locations').select('*');
+    setCourierLocations(data || []);
+  };
+
+  // Realtime subscription for courier_locations
+  useEffect(() => {
+    const channel = supabase
+      .channel('courier_locations_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'courier_locations' }, (payload: any) => {
+        setCourierLocations(prev => {
+          const updated = payload.new;
+          const exists = prev.findIndex((l: any) => l.courier_id === updated.courier_id);
+          if (exists >= 0) {
+            const copy = [...prev];
+            copy[exists] = updated;
+            return copy;
+          }
+          return [...prev, updated];
+        });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const loadData = async () => {
     const [rolesRes, ordersRes, statusRes, officesRes] = await Promise.all([
       supabase.from('user_roles').select('user_id').eq('role', 'courier'),
