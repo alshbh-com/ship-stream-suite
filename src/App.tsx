@@ -48,6 +48,7 @@ import OfficeReport from "@/pages/OfficeReport";
 import TrashBin from "@/pages/TrashBin";
 import SystemGuide from "@/pages/SystemGuide";
 import NotFound from "./pages/NotFound";
+import InstallApp from "@/pages/InstallApp";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<LoginRedirect />} />
             <Route path="/tracking" element={<TrackingPage />} />
+            <Route path="/install" element={<InstallApp />} />
             <Route path="/courier-orders" element={
               <ProtectedRoute><CourierOrders /></ProtectedRoute>
             } />
