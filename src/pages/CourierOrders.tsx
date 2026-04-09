@@ -36,29 +36,37 @@ export default function CourierOrders() {
   const [search, setSearch] = useState('');
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // GPS tracking - mandatory, auto-prompt
-  useCourierLocation(user?.id);
+  // GPS tracking - starts only after permission granted
+  useCourierLocation(locationGranted ? user?.id : undefined);
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
       setLocationGranted(false);
+      toast.error('جهازك لا يدعم تحديد الموقع');
       return;
     }
+    // This triggers the browser/webview permission prompt
     navigator.geolocation.getCurrentPosition(
-      () => setLocationGranted(true),
+      () => {
+        setLocationGranted(true);
+        toast.success('تم تفعيل الموقع بنجاح ✓');
+      },
       (err) => {
         console.error('GPS denied:', err);
         setLocationGranted(false);
-        // Re-prompt after 3 seconds
-        setTimeout(requestLocation, 3000);
+        if (err.code === 1) {
+          toast.error('تم رفض صلاحية الموقع. يرجى السماح من إعدادات التطبيق.');
+        } else if (err.code === 2) {
+          toast.error('الموقع غير متاح حالياً، حاول مرة أخرى');
+        } else {
+          toast.error('انتهت مهلة تحديد الموقع، حاول مرة أخرى');
+        }
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000 }
     );
   };
 
-  useEffect(() => {
-    requestLocation();
-  }, []);
+  // Don't auto-request on load — let the user tap the button (important for WebView)
 
   useEffect(() => {
     load();
