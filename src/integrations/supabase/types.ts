@@ -42,24 +42,30 @@ export type Database = {
         Row: {
           amount: number | null
           created_at: string | null
+          created_by: string | null
           id: string
           notes: string | null
+          reason: string | null
           type: string | null
           user_id: string
         }
         Insert: {
           amount?: number | null
           created_at?: string | null
+          created_by?: string | null
           id?: string
           notes?: string | null
+          reason?: string | null
           type?: string | null
           user_id: string
         }
         Update: {
           amount?: number | null
           created_at?: string | null
+          created_by?: string | null
           id?: string
           notes?: string | null
+          reason?: string | null
           type?: string | null
           user_id?: string
         }

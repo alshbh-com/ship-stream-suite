@@ -1,0 +1,3 @@
+
+ALTER TABLE public.advances ADD COLUMN IF NOT EXISTS reason TEXT DEFAULT '';
+ALTER TABLE public.advances ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
