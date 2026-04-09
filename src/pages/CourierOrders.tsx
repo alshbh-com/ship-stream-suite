@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,6 +27,9 @@ export default function CourierOrders() {
   const [partialDialog, setPartialDialog] = useState<any | null>(null);
   const [partialAmount, setPartialAmount] = useState('');
   const [locationGranted, setLocationGranted] = useState<boolean | null>(null);
+  const [locationPermissionState, setLocationPermissionState] = useState<'checking' | 'prompt' | 'granted' | 'denied' | 'unsupported'>('checking');
+  const [locationHint, setLocationHint] = useState('اضغط الزر وسيظهر طلب صلاحية الموقع من داخل الصفحة نفسها.');
+  const [requestingLocation, setRequestingLocation] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatContacts, setChatContacts] = useState<any[]>([]);
   const [chatTarget, setChatTarget] = useState<string | null>(null);
@@ -35,44 +38,121 @@ export default function CourierOrders() {
   const [chatSending, setChatSending] = useState(false);
   const [search, setSearch] = useState('');
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const permissionStatusRef = useRef<PermissionStatus | null>(null);
 
   // GPS tracking - starts only after permission granted
   useCourierLocation(locationGranted ? user?.id : undefined);
 
+  const syncLocationPermission = useCallback(async () => {
+    if (!navigator.geolocation) {
+      setLocationGranted(false);
+      setLocationPermissionState('unsupported');
+      setLocationHint('جهازك أو الـ WebView الحالي لا يدعم تحديد الموقع من الصفحة.');
+      return;
+    }
+
+    if (!navigator.permissions?.query) {
+      setLocationPermissionState((current) => current === 'granted' ? 'granted' : 'prompt');
+      setLocationHint('اضغط الزر بالأسفل لطلب صلاحية الموقع من داخل الصفحة.');
+      return;
+    }
+
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+      permissionStatusRef.current = permissionStatus;
+
+      const applyPermissionState = (state: PermissionState) => {
+        if (state === 'granted') {
+          setLocationGranted(true);
+          setLocationPermissionState('granted');
+          setLocationHint('الموقع مفعّل وسيتم إرسال مكانك تلقائياً.');
+          return;
+        }
+
+        if (state === 'denied') {
+          setLocationGranted(false);
+          setLocationPermissionState('denied');
+          setLocationHint('صلاحية الموقع مرفوضة للموقع الحالي؛ اسمح بها ثم اضغط إعادة التحقق.');
+          return;
+        }
+
+        setLocationGranted(null);
+        setLocationPermissionState('prompt');
+        setLocationHint('اضغط الزر بالأسفل لفتح طلب الصلاحية من داخل الصفحة.');
+      };
+
+      applyPermissionState(permissionStatus.state);
+      permissionStatus.onchange = () => applyPermissionState(permissionStatus.state);
+    } catch {
+      setLocationPermissionState('prompt');
+      setLocationHint('اضغط الزر بالأسفل لطلب صلاحية الموقع من داخل الصفحة.');
+    }
+  }, []);
+
   const requestLocation = () => {
     if (!navigator.geolocation) {
       setLocationGranted(false);
+      setLocationPermissionState('unsupported');
       toast.error('جهازك لا يدعم تحديد الموقع');
       return;
     }
-    // This triggers the browser/webview permission prompt
+
+    setRequestingLocation(true);
+    setLocationPermissionState('checking');
+    setLocationHint('جارٍ طلب صلاحية الموقع من داخل الصفحة...');
+
     navigator.geolocation.getCurrentPosition(
       () => {
         setLocationGranted(true);
+        setLocationPermissionState('granted');
+        setLocationHint('تم تفعيل الموقع بنجاح وسيبدأ التتبع الآن.');
+        setRequestingLocation(false);
         toast.success('تم تفعيل الموقع بنجاح ✓');
+        syncLocationPermission();
       },
       (err) => {
         console.error('GPS denied:', err);
         setLocationGranted(false);
+        setRequestingLocation(false);
         if (err.code === 1) {
-          toast.error('تم رفض صلاحية الموقع. يرجى السماح من إعدادات التطبيق.');
+          setLocationPermissionState('denied');
+          setLocationHint('الموقع الحالي مرفوض؛ اسمح للموقع من إعداداته ثم اضغط إعادة التحقق.');
+          toast.error('تم رفض صلاحية الموقع للموقع الحالي، اسمح بها ثم أعد المحاولة');
         } else if (err.code === 2) {
+          setLocationPermissionState('prompt');
+          setLocationHint('تعذر تحديد مكانك حالياً؛ تأكد أن GPS مفتوح ثم أعد المحاولة.');
           toast.error('الموقع غير متاح حالياً، حاول مرة أخرى');
         } else {
+          setLocationPermissionState('prompt');
+          setLocationHint('انتهت مهلة تحديد الموقع؛ جرّب مرة أخرى من نفس الزر.');
           toast.error('انتهت مهلة تحديد الموقع، حاول مرة أخرى');
         }
+        syncLocationPermission();
       },
-      { enableHighAccuracy: true, timeout: 15000 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   };
 
-  // Don't auto-request on load — let the user tap the button (important for WebView)
-
   useEffect(() => {
+    syncLocationPermission();
     load();
     loadChatContacts();
     supabase.from('order_statuses').select('*').order('sort_order').then(({ data }) => setStatuses(data || []));
-  }, []);
+  }, [syncLocationPermission]);
+
+  useEffect(() => {
+    const handleResume = () => syncLocationPermission();
+    window.addEventListener('focus', handleResume);
+    document.addEventListener('visibilitychange', handleResume);
+
+    return () => {
+      window.removeEventListener('focus', handleResume);
+      document.removeEventListener('visibilitychange', handleResume);
+      if (permissionStatusRef.current) {
+        permissionStatusRef.current.onchange = null;
+      }
+    };
+  }, [syncLocationPermission]);
 
   // Chat realtime
   useEffect(() => {
@@ -287,22 +367,41 @@ export default function CourierOrders() {
                 <MapPin className="h-8 w-8 text-destructive" />
               </div>
               <div>
-                <p className="font-bold text-lg text-destructive">تفعيل الموقع مطلوب</p>
+                <p className="font-bold text-lg text-destructive">فعّل الموقع من داخل الصفحة</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  يجب تفعيل صلاحية الموقع حتى تتمكن من استلام وتسليم الأوردرات.
+                  {locationHint}
                 </p>
               </div>
-              <Button size="lg" variant="destructive" onClick={requestLocation} className="w-full text-base gap-2">
+              <div className="rounded-lg bg-background/70 p-3 text-sm text-right">
+                <p className="font-medium">حالة الصلاحية: {
+                  locationPermissionState === 'checking' ? 'جارٍ الفحص...' :
+                  locationPermissionState === 'granted' ? 'مفعّلة' :
+                  locationPermissionState === 'denied' ? 'مرفوضة' :
+                  locationPermissionState === 'unsupported' ? 'غير مدعومة' :
+                  'تحتاج موافقة'
+                }</p>
+              </div>
+              <Button size="lg" variant="destructive" onClick={requestLocation} className="w-full text-base gap-2" disabled={requestingLocation || locationPermissionState === 'unsupported'}>
                 <MapPin className="h-5 w-5" />
-                اضغط هنا لتفعيل الموقع
+                {requestingLocation ? 'جارٍ طلب الصلاحية...' : 'اضغط هنا لتفعيل الموقع'}
               </Button>
-              {locationGranted === false && (
+              <Button size="lg" variant="outline" onClick={syncLocationPermission} className="w-full text-base gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                إعادة التحقق من الصلاحية
+              </Button>
+              {locationPermissionState === 'denied' && (
                 <div className="bg-muted rounded-lg p-3 text-xs text-muted-foreground text-right space-y-1">
-                  <p className="font-bold">إذا لم تظهر نافذة الصلاحية:</p>
-                  <p>1. افتح إعدادات التطبيق من هاتفك</p>
-                  <p>2. اذهب إلى "الأذونات" أو "Permissions"</p>
-                  <p>3. فعّل صلاحية "الموقع" أو "Location"</p>
-                  <p>4. ارجع للتطبيق واضغط الزر مرة أخرى</p>
+                  <p className="font-bold">إذا تم رفض الموقع للموقع الحالي:</p>
+                  <p>1. افتح إعدادات الموقع الخاصة بالصفحة أو الـ WebView</p>
+                  <p>2. اسمح بـ Location أو Precise location</p>
+                  <p>3. ارجع لهذه الصفحة واضغط "إعادة التحقق"</p>
+                </div>
+              )}
+              {locationPermissionState === 'prompt' && (
+                <div className="bg-muted rounded-lg p-3 text-xs text-muted-foreground text-right space-y-1">
+                  <p className="font-bold">مهم:</p>
+                  <p>طلب الصلاحية سيظهر فقط بعد الضغط على زر التفعيل.</p>
+                  <p>لو لم يظهر الطلب، اضغط "إعادة التحقق" ثم جرّب مرة ثانية.</p>
                 </div>
               )}
             </CardContent>
