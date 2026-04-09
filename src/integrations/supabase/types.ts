@@ -310,24 +310,33 @@ export type Database = {
           diary_date: string | null
           diary_number: number
           id: string
+          is_archived: boolean | null
           is_closed: boolean | null
+          lock_status_updates: boolean | null
           office_id: string
+          prevent_new_orders: boolean | null
         }
         Insert: {
           created_at?: string | null
           diary_date?: string | null
           diary_number?: number
           id?: string
+          is_archived?: boolean | null
           is_closed?: boolean | null
+          lock_status_updates?: boolean | null
           office_id: string
+          prevent_new_orders?: boolean | null
         }
         Update: {
           created_at?: string | null
           diary_date?: string | null
           diary_number?: number
           id?: string
+          is_archived?: boolean | null
           is_closed?: boolean | null
+          lock_status_updates?: boolean | null
           office_id?: string
+          prevent_new_orders?: boolean | null
         }
         Relationships: [
           {
@@ -777,30 +786,39 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
+          coverage_areas: string | null
           created_at: string | null
           full_name: string | null
           id: string
           login_code: string | null
+          notes: string | null
           office_id: string | null
           phone: string | null
           salary: number | null
           updated_at: string | null
         }
         Insert: {
+          address?: string | null
+          coverage_areas?: string | null
           created_at?: string | null
           full_name?: string | null
           id: string
           login_code?: string | null
+          notes?: string | null
           office_id?: string | null
           phone?: string | null
           salary?: number | null
           updated_at?: string | null
         }
         Update: {
+          address?: string | null
+          coverage_areas?: string | null
           created_at?: string | null
           full_name?: string | null
           id?: string
           login_code?: string | null
+          notes?: string | null
           office_id?: string | null
           phone?: string | null
           salary?: number | null
