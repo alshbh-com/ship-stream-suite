@@ -36,29 +36,37 @@ export default function CourierOrders() {
   const [search, setSearch] = useState('');
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // GPS tracking - mandatory, auto-prompt
-  useCourierLocation(user?.id);
+  // GPS tracking - starts only after permission granted
+  useCourierLocation(locationGranted ? user?.id : undefined);
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
       setLocationGranted(false);
+      toast.error('جهازك لا يدعم تحديد الموقع');
       return;
     }
+    // This triggers the browser/webview permission prompt
     navigator.geolocation.getCurrentPosition(
-      () => setLocationGranted(true),
+      () => {
+        setLocationGranted(true);
+        toast.success('تم تفعيل الموقع بنجاح ✓');
+      },
       (err) => {
         console.error('GPS denied:', err);
         setLocationGranted(false);
-        // Re-prompt after 3 seconds
-        setTimeout(requestLocation, 3000);
+        if (err.code === 1) {
+          toast.error('تم رفض صلاحية الموقع. يرجى السماح من إعدادات التطبيق.');
+        } else if (err.code === 2) {
+          toast.error('الموقع غير متاح حالياً، حاول مرة أخرى');
+        } else {
+          toast.error('انتهت مهلة تحديد الموقع، حاول مرة أخرى');
+        }
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000 }
     );
   };
 
-  useEffect(() => {
-    requestLocation();
-  }, []);
+  // Don't auto-request on load — let the user tap the button (important for WebView)
 
   useEffect(() => {
     load();
@@ -272,17 +280,31 @@ export default function CourierOrders() {
           </div>
         </div>
 
-        {locationGranted === false && (
-          <Card className="border-destructive bg-destructive/10">
-            <CardContent className="p-3 flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-              <div className="flex-1">
-                <p className="font-bold text-sm text-destructive">تفعيل الموقع مطلوب!</p>
-                <p className="text-xs text-muted-foreground">اضغط "سماح" في نافذة المتصفح لتفعيل الموقع. لن تتمكن من العمل بدون تفعيل GPS.</p>
+        {locationGranted !== true && (
+          <Card className="border-destructive bg-destructive/5">
+            <CardContent className="p-6 space-y-4 text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                <MapPin className="h-8 w-8 text-destructive" />
               </div>
-              <Button size="sm" variant="destructive" onClick={requestLocation} className="shrink-0">
-                <MapPin className="h-3 w-3 ml-1" />إعادة المحاولة
+              <div>
+                <p className="font-bold text-lg text-destructive">تفعيل الموقع مطلوب</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  يجب تفعيل صلاحية الموقع حتى تتمكن من استلام وتسليم الأوردرات.
+                </p>
+              </div>
+              <Button size="lg" variant="destructive" onClick={requestLocation} className="w-full text-base gap-2">
+                <MapPin className="h-5 w-5" />
+                اضغط هنا لتفعيل الموقع
               </Button>
+              {locationGranted === false && (
+                <div className="bg-muted rounded-lg p-3 text-xs text-muted-foreground text-right space-y-1">
+                  <p className="font-bold">إذا لم تظهر نافذة الصلاحية:</p>
+                  <p>1. افتح إعدادات التطبيق من هاتفك</p>
+                  <p>2. اذهب إلى "الأذونات" أو "Permissions"</p>
+                  <p>3. فعّل صلاحية "الموقع" أو "Location"</p>
+                  <p>4. ارجع للتطبيق واضغط الزر مرة أخرى</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
