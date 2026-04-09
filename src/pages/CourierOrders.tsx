@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -343,9 +343,38 @@ export default function CourierOrders() {
     setOrders(newOrders);
   };
 
+  // Detect WebView
+  const isWebView = useMemo(() => {
+    const ua = navigator.userAgent || '';
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+    if (isStandalone) return false;
+    // Common WebView indicators
+    return /wv|WebView|FB_IAB|FBAN|Instagram|Line\/|Twitter|Snapchat/i.test(ua) ||
+      (/(iPhone|iPad)/.test(ua) && !/Safari/i.test(ua)) ||
+      (/Android/.test(ua) && /; wv\)/.test(ua));
+  }, []);
+
+  const [showWebViewBanner, setShowWebViewBanner] = useState(true);
+
   return (
     <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6">
       <div className="mx-auto max-w-4xl space-y-4">
+        {isWebView && showWebViewBanner && (
+          <div className="relative bg-amber-500/10 border border-amber-500/40 rounded-lg p-4 text-right">
+            <button onClick={() => setShowWebViewBanner(false)} className="absolute top-2 left-2 text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
+            <p className="font-bold text-amber-700 dark:text-amber-400 text-sm">⚠️ أنت تستخدم التطبيق من داخل WebView</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              للحصول على أفضل تجربة ودعم كامل للموقع (GPS)، ثبّت التطبيق من المتصفح.
+            </p>
+            <a
+              href="/install"
+              className="mt-2 inline-block bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-md hover:bg-amber-600 transition-colors"
+            >
+              تثبيت التطبيق من المتصفح
+            </a>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl font-bold">أوردراتي</h1>
           <div className="flex items-center gap-2">
