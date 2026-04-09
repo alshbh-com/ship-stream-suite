@@ -143,21 +143,43 @@ export default function CourierTracking() {
     return Object.entries(govData).sort((a, b) => b[1].rate - a[1].rate);
   }, [orders, returnedStatusIds]);
 
-  // Main tracking map with live courier GPS
+  // Initialize map once
   useEffect(() => {
     if (!mapContainer) return;
-    let map: any;
 
     const initMap = async () => {
       const L = await import('leaflet');
       await import('leaflet/dist/leaflet.css');
 
-      map = L.map(mapContainer).setView([27.5, 30.8], 6);
+      if (mapRef.current) return; // already initialized
+
+      const map = L.map(mapContainer).setView([27.5, 30.8], 6);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
       }).addTo(map);
+      mapRef.current = map;
+    };
 
-      // Order distribution markers
+    initMap();
+    return () => {
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+      courierMarkersRef.current.clear();
+      govMarkersRef.current = [];
+    };
+  }, [mapContainer]);
+
+  // Update governorate markers when orders/filter change
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Remove old gov markers
+    govMarkersRef.current.forEach(m => map.removeLayer(m));
+    govMarkersRef.current = [];
+
+    const importLeaflet = async () => {
+      const L = await import('leaflet');
+
       const govCounts: Record<string, { total: number; delivered: number; pending: number; returned: number }> = {};
       const targetOrders = selectedCourier === 'all' ? orders : orders.filter(o => o.courier_id === selectedCourier);
       targetOrders.forEach(o => {
@@ -174,51 +196,118 @@ export default function CourierTracking() {
         if (!coords) return;
         const color = counts.pending > 0 ? '#f59e0b' : counts.delivered > 0 ? '#22c55e' : '#ef4444';
         const radius = Math.max(8, Math.min(25, counts.total * 3));
-        L.circleMarker(coords, {
+        const marker = L.circleMarker(coords, {
           radius, fillColor: color, color: '#1e293b', weight: 2, opacity: 1, fillOpacity: 0.6,
         }).addTo(map).bindPopup(`
           <div style="text-align:right;font-family:sans-serif;min-width:130px">
             <strong>${gov}</strong><br/>📦 إجمالي: ${counts.total}<br/>✅ تسليم: ${counts.delivered}<br/>⏳ معلق: ${counts.pending}<br/>❌ مرتجع: ${counts.returned}
           </div>`);
+        govMarkersRef.current.push(marker);
       });
+    };
+    importLeaflet();
+  }, [orders, selectedCourier, deliveredStatusIds, returnedStatusIds]);
 
-      // Live courier GPS markers
+  // Update courier markers smoothly when courierData changes (realtime)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const updateMarkers = async () => {
+      const L = await import('leaflet');
+
       const couriersWithLocation = selectedCourier === 'all'
         ? courierData.filter(c => c.location)
         : courierData.filter(c => c.location && c.id === selectedCourier);
+
+      const activeIds = new Set(couriersWithLocation.map(c => c.id));
+
+      // Remove markers for couriers no longer shown
+      courierMarkersRef.current.forEach((marker, id) => {
+        if (!activeIds.has(id)) {
+          map.removeLayer(marker);
+          courierMarkersRef.current.delete(id);
+        }
+      });
 
       couriersWithLocation.forEach(c => {
         if (!c.location) return;
         const timeDiff = (Date.now() - new Date(c.location.updated_at).getTime()) / 60000;
         const isRecent = timeDiff < 10;
         const markerColor = isRecent ? '#3b82f6' : '#9ca3af';
+        const newLatLng = L.latLng(c.location.lat, c.location.lng);
 
-        const icon = L.divIcon({
-          className: '',
-          html: `<div style="
-            background:${markerColor};width:36px;height:36px;border-radius:50%;
-            border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);
-            display:flex;align-items:center;justify-content:center;
-            font-size:16px;color:white;font-weight:bold;
-          ">${c.name.charAt(0)}</div>`,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18],
-        });
+        const existingMarker = courierMarkersRef.current.get(c.id);
+        if (existingMarker) {
+          // Smoothly animate to new position
+          const start = existingMarker.getLatLng();
+          const steps = 30;
+          let step = 0;
+          const latDiff = newLatLng.lat - start.lat;
+          const lngDiff = newLatLng.lng - start.lng;
+          if (Math.abs(latDiff) > 0.00001 || Math.abs(lngDiff) > 0.00001) {
+            const animate = () => {
+              step++;
+              const progress = step / steps;
+              const eased = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+              existingMarker.setLatLng([start.lat + latDiff * eased, start.lng + lngDiff * eased]);
+              if (step < steps) requestAnimationFrame(animate);
+            };
+            requestAnimationFrame(animate);
+          }
 
-        L.marker([c.location.lat, c.location.lng], { icon }).addTo(map).bindPopup(`
-          <div style="text-align:right;font-family:sans-serif;min-width:150px">
-            <strong>🚚 ${c.name}</strong><br/>
-            📞 ${c.phone}<br/>
-            📦 معلق: ${c.pending} | ✅ تسليم: ${c.delivered}<br/>
-            ⏱ آخر تحديث: ${isRecent ? 'الآن' : Math.round(timeDiff) + ' دقيقة'}
-            ${!isRecent ? '<br/><span style="color:#ef4444">⚠ غير متصل</span>' : ''}
-          </div>`);
+          // Update icon color & popup
+          const icon = L.divIcon({
+            className: '',
+            html: `<div style="
+              background:${markerColor};width:40px;height:40px;border-radius:50%;
+              border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.4);
+              display:flex;align-items:center;justify-content:center;
+              font-size:16px;color:white;font-weight:bold;
+              transition: background 0.3s;
+            ">${c.name.charAt(0)}</div>`,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+          });
+          existingMarker.setIcon(icon);
+          existingMarker.setPopupContent(`
+            <div style="text-align:right;font-family:sans-serif;min-width:160px">
+              <strong>🚚 ${c.name}</strong><br/>
+              📞 ${c.phone}<br/>
+              📦 معلق: ${c.pending} | ✅ تسليم: ${c.delivered}<br/>
+              📍 دقة: ${Math.round(c.location.accuracy || 0)}م<br/>
+              ⏱ آخر تحديث: ${isRecent ? 'الآن' : Math.round(timeDiff) + ' دقيقة'}
+              ${!isRecent ? '<br/><span style="color:#ef4444">⚠ غير متصل</span>' : ''}
+            </div>`);
+        } else {
+          // Create new marker
+          const icon = L.divIcon({
+            className: '',
+            html: `<div style="
+              background:${markerColor};width:40px;height:40px;border-radius:50%;
+              border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.4);
+              display:flex;align-items:center;justify-content:center;
+              font-size:16px;color:white;font-weight:bold;
+            ">${c.name.charAt(0)}</div>`,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+          });
+
+          const marker = L.marker([c.location.lat, c.location.lng], { icon, zIndexOffset: 1000 }).addTo(map).bindPopup(`
+            <div style="text-align:right;font-family:sans-serif;min-width:160px">
+              <strong>🚚 ${c.name}</strong><br/>
+              📞 ${c.phone}<br/>
+              📦 معلق: ${c.pending} | ✅ تسليم: ${c.delivered}<br/>
+              📍 دقة: ${Math.round(c.location.accuracy || 0)}م<br/>
+              ⏱ آخر تحديث: ${isRecent ? 'الآن' : Math.round(timeDiff) + ' دقيقة'}
+              ${!isRecent ? '<br/><span style="color:#ef4444">⚠ غير متصل</span>' : ''}
+            </div>`);
+          courierMarkersRef.current.set(c.id, marker);
+        }
       });
     };
-
-    initMap();
-    return () => { if (map) map.remove(); };
-  }, [mapContainer, orders, courierData, selectedCourier, deliveredStatusIds, returnedStatusIds]);
+    updateMarkers();
+  }, [courierData, selectedCourier]);
 
   // Rejection heat map
   useEffect(() => {
