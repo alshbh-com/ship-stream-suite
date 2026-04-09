@@ -334,8 +334,11 @@ export default function CourierTracking() {
       await import('leaflet/dist/leaflet.css');
 
       map = L.map(heatMapContainer).setView([27.5, 30.8], 6);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri', maxZoom: 19,
+      }).addTo(map);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
       }).addTo(map);
 
       rejectionData.forEach(([gov, data]) => {
