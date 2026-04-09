@@ -154,8 +154,13 @@ export default function CourierTracking() {
       if (mapRef.current) return; // already initialized
 
       const map = L.map(mapContainer).setView([27.5, 30.8], 6);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri',
+        maxZoom: 19,
+      }).addTo(map);
+      // Add labels overlay on satellite
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
       }).addTo(map);
       mapRef.current = map;
     };
