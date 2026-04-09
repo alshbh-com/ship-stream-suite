@@ -45,18 +45,10 @@ export default function CourierTracking() {
   const [mapContainer, setMapContainer] = useState<HTMLDivElement | null>(null);
   const [heatMapContainer, setHeatMapContainer] = useState<HTMLDivElement | null>(null);
 
-  useEffect(() => { loadData(); }, []);
-
-  // Auto-refresh locations every 30s
-  useEffect(() => {
-    const interval = setInterval(loadLocations, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadLocations = async () => {
-    const { data } = await supabase.from('courier_locations' as any).select('*');
-    setCourierLocations(data || []);
-  };
+  // Refs for persistent map and markers
+  const mapRef = useRef<any>(null);
+  const courierMarkersRef = useRef<Map<string, any>>(new Map());
+  const govMarkersRef = useRef<any[]>([]);
 
   const loadData = async () => {
     const [rolesRes, ordersRes, statusRes, officesRes] = await Promise.all([
