@@ -310,6 +310,16 @@ export default function CourierTracking() {
           courierMarkersRef.current.set(c.id, marker);
         }
       });
+
+      // Auto-zoom on selected courier
+      if (selectedCourier !== 'all') {
+        const selected = couriersWithLocation.find(c => c.id === selectedCourier);
+        if (selected?.location) {
+          map.flyTo([selected.location.lat, selected.location.lng], 16, { duration: 1.2 });
+          const marker = courierMarkersRef.current.get(selected.id);
+          if (marker) setTimeout(() => marker.openPopup(), 1300);
+        }
+      }
     };
     updateMarkers();
   }, [courierData, selectedCourier]);
