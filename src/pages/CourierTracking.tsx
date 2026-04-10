@@ -154,14 +154,26 @@ export default function CourierTracking() {
       if (mapRef.current) return; // already initialized
 
       const map = L.map(mapContainer).setView([27.5, 30.8], 6);
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      
+      // Street map with full street names (default)
+      const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19,
+      });
+
+      // Satellite base layer
+      const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: '© Esri',
         maxZoom: 19,
-      }).addTo(map);
-      // Add labels overlay on satellite
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
-      }).addTo(map);
+      });
+
+      // Default to streets for clear street names
+      streets.addTo(map);
+      
+      L.control.layers({
+        'خريطة الشوارع': streets,
+        'قمر صناعي': satellite,
+      }, {}, { position: 'topright' }).addTo(map);
       mapRef.current = map;
     };
 
@@ -334,10 +346,8 @@ export default function CourierTracking() {
       await import('leaflet/dist/leaflet.css');
 
       map = L.map(heatMapContainer).setView([27.5, 30.8], 6);
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '© Esri', maxZoom: 19,
-      }).addTo(map);
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}', {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
         maxZoom: 19,
       }).addTo(map);
 
