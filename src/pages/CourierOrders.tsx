@@ -52,8 +52,18 @@ export default function CourierOrders() {
     }
 
     if (!navigator.permissions?.query) {
-      setLocationPermissionState((current) => current === 'granted' ? 'granted' : 'prompt');
-      setLocationHint('اضغط الزر بالأسفل لطلب صلاحية الموقع من داخل الصفحة.');
+      setLocationPermissionState((current) => {
+        if (current === 'granted') return 'granted';
+        return 'prompt';
+      });
+      setLocationGranted((current) => {
+        if (current === true) {
+          setLocationHint('الموقع مفعّل وسيتم إرسال مكانك تلقائياً.');
+          return true;
+        }
+        setLocationHint('اضغط الزر بالأسفل لطلب صلاحية الموقع من داخل الصفحة.');
+        return current;
+      });
       return;
     }
 
