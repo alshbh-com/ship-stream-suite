@@ -103,7 +103,7 @@ export default function Orders() {
   const closeSelected = async () => {
     if (selected.size === 0) { toast.error('اختر أوردرات أولاً'); return; }
     if (!confirm(`هل تريد تقفيل ${selected.size} أوردر؟`)) return;
-    const { error } = await supabase.from('orders').update({ is_closed: true }).in('id', Array.from(selected));
+    const { error } = await supabase.from('orders').update({ is_closed: true, is_courier_closed: true }).in('id', Array.from(selected));
     if (error) { toast.error(error.message); return; }
     logActivity('تقفيل أوردرات', { count: selected.size });
     toast.success(`تم تقفيل ${selected.size} أوردر`);
@@ -116,7 +116,7 @@ export default function Orders() {
     if (!confirm(`هل تريد نقل ${selected.size} أوردر إلى سلة المحذوفات؟`)) return;
     const ids = Array.from(selected);
     moveToTrash(ids);
-    const { error } = await supabase.from('orders').update({ is_closed: true }).in('id', ids);
+    const { error } = await supabase.from('orders').update({ is_closed: true, is_courier_closed: true }).in('id', ids);
     if (error) { toast.error(error.message); return; }
     logActivity('نقل أوردرات لسلة المحذوفات', { count: selected.size });
     toast.success(`تم حذف ${selected.size} أوردر`);
