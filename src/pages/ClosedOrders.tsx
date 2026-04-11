@@ -82,7 +82,7 @@ export default function ClosedOrders() {
   const reopenSelected = async () => {
     if (selected.size === 0) return;
     if (!confirm(`إلغاء تقفيل ${selected.size} أوردر؟`)) return;
-    const { error } = await supabase.from('orders').update({ is_closed: false }).in('id', Array.from(selected));
+    const { error } = await supabase.from('orders').update({ is_closed: false, is_courier_closed: false }).in('id', Array.from(selected));
     if (error) { toast.error(error.message); return; }
     toast.success('تم إعادة فتح الأوردرات');
     setSelected(new Set());
