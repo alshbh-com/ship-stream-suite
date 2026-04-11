@@ -25,9 +25,9 @@ export default function SectionGuide({ title, description, steps, tips, formulas
             <HelpCircle className="h-5 w-5 text-primary shrink-0" />
             <span className="font-bold text-sm sm:text-base text-primary">📖 شرح: {title}</span>
           </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+          <span className="h-7 w-7 shrink-0 flex items-center justify-center rounded-md hover:bg-accent">
             {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
+          </span>
         </button>
 
         {open && (
