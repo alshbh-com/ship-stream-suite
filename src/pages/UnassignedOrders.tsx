@@ -99,7 +99,7 @@ export default function UnassignedOrders() {
   const closeSelected = async () => {
     if (selected.size === 0) { toast.error('اختر أوردرات أولاً'); return; }
     if (!confirm(`هل تريد تقفيل ${selected.size} أوردر؟`)) return;
-    const { error } = await supabase.from('orders').update({ is_closed: true }).in('id', Array.from(selected));
+    const { error } = await supabase.from('orders').update({ is_closed: true, is_courier_closed: true }).in('id', Array.from(selected));
     if (error) { toast.error(error.message); return; }
     logActivity('تقفيل أوردرات من جميع الأوردرات', { count: selected.size });
     toast.success(`تم تقفيل ${selected.size} أوردر`);
