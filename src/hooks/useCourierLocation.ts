@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+const STORAGE_KEY = 'courier_last_location';
+
 /**
  * Hook that sends the courier's GPS location to the DB every 30 seconds.
- * Returns a promise that resolves once the first location is acquired,
- * or rejects if the user denies permission.
+ * Saves last known location to localStorage so it persists even if GPS is turned off.
  */
 export function useCourierLocation(userId: string | undefined) {
   const watchIdRef = useRef<number | null>(null);
@@ -12,7 +13,15 @@ export function useCourierLocation(userId: string | undefined) {
   const latestPos = useRef<{ lat: number; lng: number; accuracy: number } | null>(null);
 
   useEffect(() => {
-    if (!userId || !navigator.geolocation) return;
+    if (!userId) return;
+
+    // Restore last known location from localStorage
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        latestPos.current = JSON.parse(saved);
+      }
+    } catch {}
 
     const sendLocation = async () => {
       const pos = latestPos.current;
@@ -26,23 +35,31 @@ export function useCourierLocation(userId: string | undefined) {
       }, { onConflict: 'courier_id' });
     };
 
-    // Watch position continuously
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        latestPos.current = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-        };
-      },
-      (err) => {
-        console.error('Geolocation error:', err);
-      },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
-    );
+    if (navigator.geolocation) {
+      // Watch position continuously
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (position) => {
+          const loc = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+          };
+          latestPos.current = loc;
+          // Save to localStorage for persistence
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(loc));
+          } catch {}
+        },
+        (err) => {
+          console.warn('Geolocation error:', err.message);
+          // Still send last known location even if GPS fails
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+      );
+    }
 
-    // Send to DB every 30 seconds
-    sendLocation(); // initial
+    // Send to DB every 30 seconds (even if GPS is off, sends last known)
+    sendLocation();
     intervalRef.current = setInterval(sendLocation, 30000);
 
     return () => {
