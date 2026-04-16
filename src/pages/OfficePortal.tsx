@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { LogOut, Package, Plus, Loader2 } from 'lucide-react';
+import { LogOut, Package, Plus, Loader2, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -74,6 +74,9 @@ export default function OfficePortal() {
             {officeName && <p className="text-muted-foreground text-sm">{officeName}</p>}
           </div>
           <div className="flex gap-2">
+            <Button variant="ghost" size="icon" onClick={() => window.location.reload()} title="تحديث">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             {canAddOrders && <AddOfficeOrderDialog officeId={officeId} onOrderAdded={loadData} />}
             <Button variant="outline" size="sm" onClick={logout}>
               <LogOut className="h-4 w-4 ml-1" />

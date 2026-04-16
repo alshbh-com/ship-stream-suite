@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { LogOut, Eye, Phone, MessageSquare, Send, MapPin, AlertTriangle, Search, Camera } from 'lucide-react';
+import { LogOut, Eye, Phone, MessageSquare, Send, MapPin, AlertTriangle, Search, Camera, RefreshCw } from 'lucide-react';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/activityLogger';
@@ -389,6 +389,9 @@ export default function CourierOrders() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl font-bold">أوردراتي</h1>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => window.location.reload()} title="تحديث">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             {locationGranted === true && (
               <Badge variant="default" className="text-xs gap-1">
                 <MapPin className="h-3 w-3" /> الموقع مفعّل
