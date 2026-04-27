@@ -372,23 +372,31 @@ export default function OfficeAccounts() {
     const w = window.open('', '_blank');
     if (!w) return;
 
-    const orderRows = filteredOrders.map((o, i) => `<tr>
-      <td>${i + 1}</td>
-      <td>${o.barcode || '-'}</td>
-      <td>${o.customer_name || '-'}</td>
-      <td>${o.customer_phone || '-'}</td>
-      <td>${Number(o.price || 0)}</td>
-      <td>${Number(o.delivery_price || 0)}</td>
-      <td>${courierRate}</td>
-      <td>${officeRate}</td>
-      <td>${Number(o.price || 0) - Number(o.delivery_price || 0)}</td>
-      <td>${statusName(o.status_id)}</td>
-      <td>${getCourierName(o.courier_id)}</td>
-    </tr>`).join('');
+    const orderRows = filteredOrders.map((o, i) => {
+      const st = statuses.find(s => s.id === o.status_id);
+      const isPartial = st?.name === 'تسليم جزئي';
+      const displayTotal = isPartial ? Number(o.partial_amount || 0) : Number(o.price || 0);
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${o.barcode || '-'}</td>
+        <td>${o.customer_name || '-'}</td>
+        <td>${o.customer_phone || '-'}</td>
+        <td>${displayTotal}${isPartial ? ` <small>(من ${Number(o.price || 0)})</small>` : ''}</td>
+        <td>${Number(o.delivery_price || 0)}</td>
+        <td>${courierRate}</td>
+        <td>${officeRate}</td>
+        <td>${getOrderOfficeDue(o)}</td>
+        <td>${statusName(o.status_id)}</td>
+        <td>${getCourierName(o.courier_id)}</td>
+      </tr>`;
+    }).join('');
 
-    const totalPrice = filteredOrders.reduce((s, o) => s + Number(o.price || 0), 0);
+    const totalPrice = filteredOrders.reduce((s, o) => {
+      const st = statuses.find(x => x.id === o.status_id);
+      return s + (st?.name === 'تسليم جزئي' ? Number(o.partial_amount || 0) : Number(o.price || 0));
+    }, 0);
     const totalShipping = filteredOrders.reduce((s, o) => s + Number(o.delivery_price || 0), 0);
-    const totalNet = totalPrice - totalShipping;
+    const totalNet = filteredOrders.reduce((s, o) => s + getOrderOfficeDue(o), 0);
 
     w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
     <title>حسابات ${officeName}</title>
