@@ -127,13 +127,18 @@ export default function OfficeAccounts() {
       const shippingDiscount = officePayments.filter(p => p.type === 'shipping_discount').reduce((sum, p) => sum + Number(p.amount), 0);
       const partialManual = officePayments.filter(p => p.type === 'partial_delivery').reduce((sum, p) => sum + Number(p.amount), 0);
 
-      const deliveredTotal = orders.filter(o => o.status_id === deliveredStatus?.id).reduce((sum, o) => sum + Number(o.price), 0);
+      const deliveredOrders = orders.filter(o => o.status_id === deliveredStatus?.id);
+      const deliveredTotal = deliveredOrders.reduce((sum, o) => sum + Number(o.price), 0);
+      const deliveredShipping = deliveredOrders.reduce((sum, o) => sum + Number(o.delivery_price || 0), 0);
       const returnedTotal = orders.filter(o => returnStatusIds.includes(o.status_id)).reduce((sum, o) => sum + Number(o.price), 0);
-      const postponedTotal = orders.filter(o => o.status_id === postponedStatus?.id).reduce((sum, o) => sum + Number(o.price), 0);
+      const postponedOrders = orders.filter(o => o.status_id === postponedStatus?.id);
+      const postponedTotal = postponedOrders.reduce((sum, o) => sum + Number(o.price), 0);
+      const postponedShipping = postponedOrders.reduce((sum, o) => sum + Number(o.delivery_price || 0), 0);
       const partialCourierCollected = orders.filter(o => o.status_id === partialStatus?.id).reduce((sum, o) => sum + Number(o.partial_amount || 0), 0);
 
-      const settlement = (deliveredTotal + partialManual) - (advancePaid + returnedTotal + shippingDiscount + commission);
-      const settlementWithPostponed = settlement + postponedTotal;
+      // المستحق = (المُسلَّم - شحن المُسلَّم) + التسليم الجزئي اليدوي - (الدفعات + المرتجع + خصم شحن إضافي + العمولة)
+      const settlement = (deliveredTotal - deliveredShipping + partialManual) - (advancePaid + returnedTotal + shippingDiscount + commission);
+      const settlementWithPostponed = settlement + (postponedTotal - postponedShipping);
 
       return {
         id: office.id,
