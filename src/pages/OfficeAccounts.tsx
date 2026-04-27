@@ -265,6 +265,23 @@ export default function OfficeAccounts() {
     return offices.find(o => o.id === officeId)?.name || '-';
   };
 
+  // حساب "الإجمالي المستحق للمكتب" لكل أوردر بحسب حالته
+  // - تم التسليم/مؤجل: المكتب استحقاقه = price (الشحن من حقي)
+  // - تسليم جزئي: المكتب استحقاقه = max(0, partial_amount - delivery_price)
+  // - مرتجع/ملغي/تهرب/...: 0
+  // - رفض ودفع شحن: 0 للمكتب (الشحن للنظام)
+  // - باقي الحالات: price (افتراضي - معلّق/قيد التنفيذ)
+  const getOrderOfficeDue = (o: any) => {
+    const status = statuses.find(s => s.id === o.status_id);
+    const name = status?.name || '';
+    const price = Number(o.price || 0);
+    const ship = Number(o.delivery_price || 0);
+    const partial = Number(o.partial_amount || 0);
+    if (name === 'تسليم جزئي') return Math.max(0, partial - ship);
+    if (['مرتجع', 'رفض ولم يدفع شحن', 'رفض ودفع شحن', 'تهرب', 'ملغي', 'لم يرد', 'لايرد'].includes(name)) return 0;
+    return price; // تم التسليم / مؤجل / غيرها
+  };
+
   const getStatusSummary = () => {
     const statusesToShow = selectedStatuses.length > 0
       ? filterableStatuses.filter(s => selectedStatuses.includes(s.id))
@@ -272,9 +289,12 @@ export default function OfficeAccounts() {
 
     return statusesToShow.map(status => {
       const ords = officeOrders.filter(o => o.status_id === status.id);
-      const total = ords.reduce((sum, o) => sum + Number(o.price || 0), 0);
+      const isPartial = status.name === 'تسليم جزئي';
+      // الإجمالي المعروض = المستحق للمكتب (للجزئي = المحصَّل، لغيره = price)
+      const total = ords.reduce((sum, o) => sum + (isPartial ? Number(o.partial_amount || 0) : Number(o.price || 0)), 0);
       const shipping = ords.reduce((sum, o) => sum + Number(o.delivery_price || 0), 0);
-      const net = total - shipping;
+      // الصافي = المستحق للمكتب الفعلي (price للتسليم، partial-shipping للجزئي)
+      const net = ords.reduce((sum, o) => sum + getOrderOfficeDue(o), 0);
       return {
         statusName: status.name,
         statusColor: status.color,
