@@ -689,9 +689,14 @@ export default function OfficeAccounts() {
                 <TableBody>
                   {filteredOrders.map((o) => {
                     const status = statuses.find(s => s.id === o.status_id);
+                    const isPartial = status?.name === 'تسليم جزئي';
                     const price = Number(o.price || 0);
                     const shipping = Number(o.delivery_price || 0);
-                    const net = price - shipping;
+                    const partial = Number(o.partial_amount || 0);
+                    // الإجمالي المعروض = للجزئي: المحصَّل من المندوب، لغيره: سعر الأوردر
+                    const displayTotal = isPartial ? partial : price;
+                    // الصافي = المستحق الفعلي للمكتب
+                    const net = getOrderOfficeDue(o);
                     const createdDate = o.created_at ? new Date(o.created_at).toLocaleDateString('ar-EG') : '-';
                     return (
                       <TableRow key={o.id} className="border-border">
@@ -704,7 +709,10 @@ export default function OfficeAccounts() {
                         <TableCell className="text-sm">{o.customer_name || '-'}</TableCell>
                         <TableCell className="text-sm">{o.customer_phone || '-'}</TableCell>
                         <TableCell className="text-sm">{getOfficeName(o.office_id)}</TableCell>
-                        <TableCell className="text-sm font-bold">{price} ج.م</TableCell>
+                        <TableCell className="text-sm font-bold">
+                          {displayTotal} ج.م
+                          {isPartial && <span className="text-[10px] text-muted-foreground block">(محصَّل من {price})</span>}
+                        </TableCell>
                         <TableCell className="text-sm">{shipping} ج.م</TableCell>
                         <TableCell className="text-sm text-amber-500 font-bold">{courierRate} ج.م</TableCell>
                         <TableCell className="text-sm text-blue-500 font-bold">{officeRate} ج.م</TableCell>
