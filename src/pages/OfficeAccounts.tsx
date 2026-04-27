@@ -734,11 +734,14 @@ export default function OfficeAccounts() {
                 <TableFooter>
                   <TableRow className="border-border bg-muted/50">
                     <TableCell colSpan={4} className="font-bold">الإجمالي ({filteredOrders.length})</TableCell>
-                    <TableCell className="font-bold">{filteredOrders.reduce((s, o) => s + Number(o.price || 0), 0)} ج.م</TableCell>
+                    <TableCell className="font-bold">{filteredOrders.reduce((s, o) => {
+                      const st = statuses.find(x => x.id === o.status_id);
+                      return s + (st?.name === 'تسليم جزئي' ? Number(o.partial_amount || 0) : Number(o.price || 0));
+                    }, 0)} ج.م</TableCell>
                     <TableCell className="font-bold">{filteredOrders.reduce((s, o) => s + Number(o.delivery_price || 0), 0)} ج.م</TableCell>
                     <TableCell className="font-bold text-amber-500">{courierRate * filteredOrders.length} ج.م</TableCell>
                     <TableCell className="font-bold text-blue-500">{officeRate * filteredOrders.length} ج.م</TableCell>
-                    <TableCell className="font-bold text-primary">{filteredOrders.reduce((s, o) => s + Number(o.price || 0) - Number(o.delivery_price || 0), 0)} ج.م</TableCell>
+                    <TableCell className="font-bold text-primary">{filteredOrders.reduce((s, o) => s + getOrderOfficeDue(o), 0)} ج.م</TableCell>
                     <TableCell colSpan={4} />
                   </TableRow>
                 </TableFooter>
