@@ -133,12 +133,22 @@ export default function OfficeAccounts() {
       const returnedTotal = orders.filter(o => returnStatusIds.includes(o.status_id)).reduce((sum, o) => sum + Number(o.price), 0);
       const postponedOrders = orders.filter(o => o.status_id === postponedStatus?.id);
       const postponedTotal = postponedOrders.reduce((sum, o) => sum + Number(o.price), 0);
-      const postponedShipping = postponedOrders.reduce((sum, o) => sum + Number(o.delivery_price || 0), 0);
-      const partialCourierCollected = orders.filter(o => o.status_id === partialStatus?.id).reduce((sum, o) => sum + Number(o.partial_amount || 0), 0);
+      const partialOrders = orders.filter(o => o.status_id === partialStatus?.id);
+      const partialCourierCollected = partialOrders.reduce((sum, o) => sum + Number(o.partial_amount || 0), 0);
+      const partialShipping = partialOrders.reduce((sum, o) => sum + Number(o.delivery_price || 0), 0);
+      // صافي الجزئي المستحق للمكتب = (المحصَّل - الشحن) لكل أوردر، بحد أدنى صفر
+      const partialNetForOffice = partialOrders.reduce((sum, o) => {
+        const collected = Number(o.partial_amount || 0);
+        const ship = Number(o.delivery_price || 0);
+        return sum + Math.max(0, collected - ship);
+      }, 0);
 
-      // المستحق = (المُسلَّم - شحن المُسلَّم) + التسليم الجزئي اليدوي - (الدفعات + المرتجع + خصم شحن إضافي + العمولة)
-      const settlement = (deliveredTotal - deliveredShipping + partialManual) - (advancePaid + returnedTotal + shippingDiscount + commission);
-      const settlementWithPostponed = settlement + (postponedTotal - postponedShipping);
+      // المستحق للمكتب:
+      // - تم التسليم: نضيف سعر المنتج كاملاً (price) لأن المكتب استلم price+shipping من العميل والشحن من حقي
+      // - تسليم جزئي: نضيف (المحصَّل - الشحن) لأن المكتب استلم المحصَّل والشحن من حقي
+      // - مرتجع/تسليم جزئي يدوي/خصم شحن/عمولة/دفعات تخصم
+      const settlement = (deliveredTotal + partialNetForOffice + partialManual) - (advancePaid + returnedTotal + shippingDiscount + commission);
+      const settlementWithPostponed = settlement + postponedTotal;
 
       return {
         id: office.id,
