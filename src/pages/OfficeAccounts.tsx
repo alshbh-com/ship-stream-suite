@@ -317,21 +317,31 @@ export default function OfficeAccounts() {
     if (filteredOrders.length === 0) { toast.error('لا توجد بيانات للتصدير'); return; }
     const statusName = (sid: string) => statuses.find(s => s.id === sid)?.name || '-';
 
-    const data = filteredOrders.map((o, i) => ({
-      '#': i + 1,
-      'الباركود': o.barcode || '-',
-      'الكود': o.customer_code || '-',
-      'العميل': o.customer_name || '-',
-      'الهاتف': o.customer_phone || '-',
-      'المكتب': getOfficeName(o.office_id),
-      'السعر': Number(o.price || 0),
-      'الشحن': Number(o.delivery_price || 0),
-      'عمولة المندوب': courierRate,
-      'عمولة المكتب': officeRate,
-      'الصافي': Number(o.price || 0) - Number(o.delivery_price || 0),
-      'الحالة': statusName(o.status_id),
-      'المندوب': getCourierName(o.courier_id),
-    }));
+    const data = filteredOrders.map((o, i) => {
+      const st = statuses.find(s => s.id === o.status_id);
+      const isPartial = st?.name === 'تسليم جزئي';
+      const displayTotal = isPartial ? Number(o.partial_amount || 0) : Number(o.price || 0);
+      return {
+        '#': i + 1,
+        'الباركود': o.barcode || '-',
+        'الكود': o.customer_code || '-',
+        'العميل': o.customer_name || '-',
+        'الهاتف': o.customer_phone || '-',
+        'المكتب': getOfficeName(o.office_id),
+        'السعر': displayTotal,
+        'الشحن': Number(o.delivery_price || 0),
+        'عمولة المندوب': courierRate,
+        'عمولة المكتب': officeRate,
+        'الصافي': getOrderOfficeDue(o),
+        'الحالة': statusName(o.status_id),
+        'المندوب': getCourierName(o.courier_id),
+      };
+    });
+
+    const totalDisplay = filteredOrders.reduce((s, o) => {
+      const st = statuses.find(x => x.id === o.status_id);
+      return s + (st?.name === 'تسليم جزئي' ? Number(o.partial_amount || 0) : Number(o.price || 0));
+    }, 0);
 
     data.push({
       '#': '' as any,
@@ -340,11 +350,11 @@ export default function OfficeAccounts() {
       'العميل': 'الإجمالي',
       'الهاتف': '',
       'المكتب': '',
-      'السعر': filteredOrders.reduce((s, o) => s + Number(o.price || 0), 0),
+      'السعر': totalDisplay,
       'الشحن': filteredOrders.reduce((s, o) => s + Number(o.delivery_price || 0), 0),
       'عمولة المندوب': courierRate * filteredOrders.length,
       'عمولة المكتب': officeRate * filteredOrders.length,
-      'الصافي': filteredOrders.reduce((s, o) => s + Number(o.price || 0) - Number(o.delivery_price || 0), 0),
+      'الصافي': filteredOrders.reduce((s, o) => s + getOrderOfficeDue(o), 0),
       'الحالة': '',
       'المندوب': '',
     });
