@@ -393,7 +393,7 @@ export default function OfficeAccounts() {
 
     const totalPrice = filteredOrders.reduce((s, o) => {
       const st = statuses.find(x => x.id === o.status_id);
-      return s + (st?.name === 'تسليم جزئي' ? Number(o.partial_amount || 0) : Number(o.price || 0));
+      return s + (st?.name === 'تسليم جزئي' ? Math.max(0, Number(o.partial_amount || 0) - Number(o.delivery_price || 0)) : Number(o.price || 0));
     }, 0);
     const totalShipping = filteredOrders.reduce((s, o) => s + Number(o.delivery_price || 0), 0);
     const totalNet = filteredOrders.reduce((s, o) => s + getOrderOfficeDue(o), 0);
