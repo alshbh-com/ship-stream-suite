@@ -291,7 +291,7 @@ export default function OfficeAccounts() {
       const ords = officeOrders.filter(o => o.status_id === status.id);
       const isPartial = status.name === 'تسليم جزئي';
       // الإجمالي المعروض = المستحق للمكتب (للجزئي = المحصَّل، لغيره = price)
-      const total = ords.reduce((sum, o) => sum + (isPartial ? Number(o.partial_amount || 0) : Number(o.price || 0)), 0);
+      const total = ords.reduce((sum, o) => sum + (isPartial ? Math.max(0, Number(o.partial_amount || 0) - Number(o.delivery_price || 0)) : Number(o.price || 0)), 0);
       const shipping = ords.reduce((sum, o) => sum + Number(o.delivery_price || 0), 0);
       // الصافي = المستحق للمكتب الفعلي (price للتسليم، partial-shipping للجزئي)
       const net = ords.reduce((sum, o) => sum + getOrderOfficeDue(o), 0);
@@ -320,7 +320,7 @@ export default function OfficeAccounts() {
     const data = filteredOrders.map((o, i) => {
       const st = statuses.find(s => s.id === o.status_id);
       const isPartial = st?.name === 'تسليم جزئي';
-      const displayTotal = isPartial ? Number(o.partial_amount || 0) : Number(o.price || 0);
+      const displayTotal = isPartial ? Math.max(0, Number(o.partial_amount || 0) - Number(o.delivery_price || 0)) : Number(o.price || 0);
       return {
         '#': i + 1,
         'الباركود': o.barcode || '-',
@@ -340,7 +340,7 @@ export default function OfficeAccounts() {
 
     const totalDisplay = filteredOrders.reduce((s, o) => {
       const st = statuses.find(x => x.id === o.status_id);
-      return s + (st?.name === 'تسليم جزئي' ? Number(o.partial_amount || 0) : Number(o.price || 0));
+      return s + (st?.name === 'تسليم جزئي' ? Math.max(0, Number(o.partial_amount || 0) - Number(o.delivery_price || 0)) : Number(o.price || 0));
     }, 0);
 
     data.push({
@@ -375,7 +375,7 @@ export default function OfficeAccounts() {
     const orderRows = filteredOrders.map((o, i) => {
       const st = statuses.find(s => s.id === o.status_id);
       const isPartial = st?.name === 'تسليم جزئي';
-      const displayTotal = isPartial ? Number(o.partial_amount || 0) : Number(o.price || 0);
+      const displayTotal = isPartial ? Math.max(0, Number(o.partial_amount || 0) - Number(o.delivery_price || 0)) : Number(o.price || 0);
       return `<tr>
         <td>${i + 1}</td>
         <td>${o.barcode || '-'}</td>
@@ -393,7 +393,7 @@ export default function OfficeAccounts() {
 
     const totalPrice = filteredOrders.reduce((s, o) => {
       const st = statuses.find(x => x.id === o.status_id);
-      return s + (st?.name === 'تسليم جزئي' ? Number(o.partial_amount || 0) : Number(o.price || 0));
+      return s + (st?.name === 'تسليم جزئي' ? Math.max(0, Number(o.partial_amount || 0) - Number(o.delivery_price || 0)) : Number(o.price || 0));
     }, 0);
     const totalShipping = filteredOrders.reduce((s, o) => s + Number(o.delivery_price || 0), 0);
     const totalNet = filteredOrders.reduce((s, o) => s + getOrderOfficeDue(o), 0);
@@ -712,7 +712,7 @@ export default function OfficeAccounts() {
                     const shipping = Number(o.delivery_price || 0);
                     const partial = Number(o.partial_amount || 0);
                     // الإجمالي المعروض = للجزئي: المحصَّل من المندوب، لغيره: سعر الأوردر
-                    const displayTotal = isPartial ? partial : price;
+                    const displayTotal = isPartial ? Math.max(0, partial - shipping) : price;
                     // الصافي = المستحق الفعلي للمكتب
                     const net = getOrderOfficeDue(o);
                     const createdDate = o.created_at ? new Date(o.created_at).toLocaleDateString('ar-EG') : '-';
@@ -729,7 +729,7 @@ export default function OfficeAccounts() {
                         <TableCell className="text-sm">{getOfficeName(o.office_id)}</TableCell>
                         <TableCell className="text-sm font-bold">
                           {displayTotal} ج.م
-                          {isPartial && <span className="text-[10px] text-muted-foreground block">(محصَّل من {price})</span>}
+                          {isPartial && <span className="text-[10px] text-muted-foreground block">(محصَّل {partial} منهم {shipping} شحن، من أصل {price})</span>}
                         </TableCell>
                         <TableCell className="text-sm">{shipping} ج.م</TableCell>
                         <TableCell className="text-sm text-amber-500 font-bold">{courierRate} ج.م</TableCell>
@@ -754,7 +754,7 @@ export default function OfficeAccounts() {
                     <TableCell colSpan={4} className="font-bold">الإجمالي ({filteredOrders.length})</TableCell>
                     <TableCell className="font-bold">{filteredOrders.reduce((s, o) => {
                       const st = statuses.find(x => x.id === o.status_id);
-                      return s + (st?.name === 'تسليم جزئي' ? Number(o.partial_amount || 0) : Number(o.price || 0));
+                      return s + (st?.name === 'تسليم جزئي' ? Math.max(0, Number(o.partial_amount || 0) - Number(o.delivery_price || 0)) : Number(o.price || 0));
                     }, 0)} ج.م</TableCell>
                     <TableCell className="font-bold">{filteredOrders.reduce((s, o) => s + Number(o.delivery_price || 0), 0)} ج.م</TableCell>
                     <TableCell className="font-bold text-amber-500">{courierRate * filteredOrders.length} ج.م</TableCell>
