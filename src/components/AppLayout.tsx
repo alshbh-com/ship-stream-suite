@@ -5,7 +5,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import SectionGuide from '@/components/SectionGuide';
 import { sectionGuides } from '@/lib/sectionGuides';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 function getGuideKey(pathname: string): string | null {
